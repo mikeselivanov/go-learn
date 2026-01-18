@@ -2,36 +2,35 @@ package main
 
 import "fmt"
 
-type List[T any] struct {
-	next *List[T]
-	val  T
-}
-
-func Add[T any](head *List[T], value T) *List[T] {
-	if head == nil {
-		head = &List[T]{nil, value}
-		return head
-	}
-
-	var last *List[T]
-	for last = head; last.next != nil; last = last.next {
-	}
-	last.next = &List[T]{nil, value}
-
-	return head
-}
-
-func PrintList[T any](list *List[T]) {
-	for ; list != nil; list = list.next {
-		fmt.Println(list.val)
+func fibonacci(c, quit chan int) {
+	x, y := 0, 1
+	for {
+		select {
+		case c <- x:
+			x, y = y, x+y
+		case <-quit:
+			fmt.Println("Quit cought")
+			return
+		}
 	}
 }
 
 func main() {
-	var list *List[int] = nil
-	list = Add(list, 45)
-	list = Add(list, 56)
-	list = Add(list, 98)
+	c := make(chan int)
+	quit := make(chan int)
 
-	PrintList(list)
+	/*
+		go func() {
+			for i := range 10 {
+				fmt.Printf("%v = %v\n", i, <-c)
+			}
+			quit <- 0
+		}()
+		fibonacci(c, quit)
+	*/
+	go fibonacci(c, quit)
+	for i := range 20 {
+		fmt.Printf("%v = %v\n", i, <-c)
+	}
+	quit <- 0
 }
