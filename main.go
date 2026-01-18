@@ -2,32 +2,36 @@ package main
 
 import "fmt"
 
-const BigInt = 1 << 100
-const SmallInt = BigInt >> 99
+type List[T any] struct {
+	next *List[T]
+	val  T
+}
 
-type Vertex struct {
-	X int
-	Y int
+func Add[T any](head *List[T], value T) *List[T] {
+	if head == nil {
+		head = &List[T]{nil, value}
+		return head
+	}
+
+	var last *List[T]
+	for last = head; last.next != nil; last = last.next {
+	}
+	last.next = &List[T]{nil, value}
+
+	return head
+}
+
+func PrintList[T any](list *List[T]) {
+	for ; list != nil; list = list.next {
+		fmt.Println(list.val)
+	}
 }
 
 func main() {
-	primes := []int{1, 3, 6, 7, 9, 23, 54}
-	printSlice(primes)
+	var list *List[int] = nil
+	list = Add(list, 45)
+	list = Add(list, 56)
+	list = Add(list, 98)
 
-	primes = primes[:0]
-	printSlice(primes)
-
-	// extend the length
-	primes = primes[:4]
-	printSlice(primes)
-
-	primes = primes[2:]
-	printSlice(primes)
-
-	primes = primes[:5]
-	printSlice(primes)
-}
-
-func printSlice(slice []int) {
-	fmt.Printf("len=%d cap=%d %v\n", len(slice), cap(slice), slice)
+	PrintList(list)
 }
