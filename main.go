@@ -1,36 +1,106 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
-func fibonacci(c, quit chan int) {
-	x, y := 0, 1
-	for {
-		select {
-		case c <- x:
-			x, y = y, x+y
-		case <-quit:
-			fmt.Println("Quit cought")
-			return
+type Fetcher interface {
+	// Fetch returns the body of URL and
+	// a slice of URLs found on that page.
+	Fetch(url string) (body string, urls []string, err error)
+}
+
+type UrlCache struct {
+	mu   sync.Mutex
+	urls map[string]bool
+}
+
+var urlCache UrlCache
+
+// Crawl uses fetcher to recursively crawl
+// pages starting with url, to a maximum of depth.
+func Crawl(url string, depth int, fetcher Fetcher) {
+	var wg sync.WaitGroup
+	// This implementation doesn't do either:
+	if depth <= 0 {
+		return
+	}
+	body, urls, err := fetcher.Fetch(url)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	var needToCrawl = false
+	urlCache.mu.Lock()
+	if urlCache.urls == nil {
+		urlCache.urls = make(map[string]bool)
+	}
+	if !urlCache.urls[url] {
+		fmt.Printf("found: %s %q\n", url, body)
+		urlCache.urls[url], needToCrawl = true, true
+	}
+	urlCache.mu.Unlock()
+
+	if needToCrawl {
+		for _, u := range urls {
+			wg.Go(func() {
+				Crawl(u, depth-1, fetcher)
+			})
 		}
 	}
+	wg.Wait()
 }
 
 func main() {
-	c := make(chan int)
-	quit := make(chan int)
+	Crawl("https://golang.org/", 4, fetcher)
+}
 
-	/*
-		go func() {
-			for i := range 10 {
-				fmt.Printf("%v = %v\n", i, <-c)
-			}
-			quit <- 0
-		}()
-		fibonacci(c, quit)
-	*/
-	go fibonacci(c, quit)
-	for i := range 20 {
-		fmt.Printf("%v = %v\n", i, <-c)
+// fakeFetcher is Fetcher that returns canned results.
+type fakeFetcher map[string]*fakeResult
+
+type fakeResult struct {
+	body string
+	urls []string
+}
+
+func (f fakeFetcher) Fetch(url string) (string, []string, error) {
+	if res, ok := f[url]; ok {
+		return res.body, res.urls, nil
 	}
-	quit <- 0
+	return "", nil, fmt.Errorf("not found: %s", url)
+}
+
+// fetcher is a populated fakeFetcher.
+var fetcher = fakeFetcher{
+	"https://golang.org/": &fakeResult{
+		"The Go Programming Language",
+		[]string{
+			"https://golang.org/pkg/",
+			"https://golang.org/cmd/",
+		},
+	},
+	"https://golang.org/pkg/": &fakeResult{
+		"Packages",
+		[]string{
+			"https://golang.org/",
+			"https://golang.org/cmd/",
+			"https://golang.org/pkg/fmt/",
+			"https://golang.org/pkg/os/",
+		},
+	},
+	"https://golang.org/pkg/fmt/": &fakeResult{
+		"Package fmt",
+		[]string{
+			"https://golang.org/",
+			"https://golang.org/pkg/",
+		},
+	},
+	"https://golang.org/pkg/os/": &fakeResult{
+		"Package os",
+		[]string{
+			"https://golang.org/",
+			"https://golang.org/pkg/",
+		},
+	},
 }
