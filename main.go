@@ -16,11 +16,9 @@ type UrlCache struct {
 	urls map[string]bool
 }
 
-var urlCache UrlCache
-
 // Crawl uses fetcher to recursively crawl
 // pages starting with url, to a maximum of depth.
-func Crawl(url string, depth int, fetcher Fetcher) {
+func Crawl(url string, depth int, fetcher Fetcher, cache *UrlCache) {
 	var wg sync.WaitGroup
 	// This implementation doesn't do either:
 	if depth <= 0 {
@@ -32,20 +30,20 @@ func Crawl(url string, depth int, fetcher Fetcher) {
 		return
 	}
 	var needToCrawl = false
-	urlCache.mu.Lock()
-	if urlCache.urls == nil {
-		urlCache.urls = make(map[string]bool)
+	cache.mu.Lock()
+	if cache.urls == nil {
+		cache.urls = make(map[string]bool)
 	}
-	if !urlCache.urls[url] {
+	if !cache.urls[url] {
 		fmt.Printf("found: %s %q\n", url, body)
-		urlCache.urls[url], needToCrawl = true, true
+		cache.urls[url], needToCrawl = true, true
 	}
-	urlCache.mu.Unlock()
+	cache.mu.Unlock()
 
 	if needToCrawl {
 		for _, u := range urls {
 			wg.Go(func() {
-				Crawl(u, depth-1, fetcher)
+				Crawl(u, depth-1, fetcher, cache)
 			})
 		}
 	}
@@ -53,7 +51,7 @@ func Crawl(url string, depth int, fetcher Fetcher) {
 }
 
 func main() {
-	Crawl("https://golang.org/", 4, fetcher)
+	Crawl("https://golang.org/", 4, fetcher, &UrlCache{})
 }
 
 // fakeFetcher is Fetcher that returns canned results.
@@ -98,6 +96,13 @@ var fetcher = fakeFetcher{
 	},
 	"https://golang.org/pkg/os/": &fakeResult{
 		"Package os",
+		[]string{
+			"https://golang.org/",
+			"https://golang.org/pkg/",
+		},
+	},
+	"https://golang.org/cmd/": &fakeResult{
+		"Common commands",
 		[]string{
 			"https://golang.org/",
 			"https://golang.org/pkg/",
