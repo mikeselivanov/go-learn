@@ -1,3 +1,5 @@
+// Test for the mascot package. Verifies that BestMascot returns the
+// expected mascot name.
 package mascot_test
 
 import (

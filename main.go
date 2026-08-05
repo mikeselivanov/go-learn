@@ -1,3 +1,7 @@
+// Scratchpad for the current Go Tour exercise. This version implements the
+// concurrent web crawler exercise: Crawl fetches pages via a Fetcher,
+// recursing into discovered links while tracking visited URLs in a
+// mutex-guarded cache to avoid duplicate work.
 package main
 
 import (
@@ -26,7 +30,7 @@ func Crawl(url string, depth int, fetcher Fetcher, cache *UrlCache) {
 	}
 	body, urls, err := fetcher.Fetch(url)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("fetch %s: %v\n", url, err)
 		return
 	}
 	var needToCrawl = false
